@@ -87,7 +87,7 @@ httpd_handle_t camera_httpd = NULL;
 static int8_t detection_enabled = 0;
 
 #if CONFIG_ESP_FACE_DETECT_MTMN
-static mtmn_config_t mtmn_config = {0};
+static mtmn_config_t mtmn_config ={ 0 };
 #endif
 
 #if CONFIG_ESP_FACE_DETECT_LSSH
@@ -98,7 +98,7 @@ static int min_face=80;
 #if CONFIG_ESP_FACE_RECOGNITION_ENABLED
 static int8_t recognition_enabled = 0;
 static int8_t is_enrolling = 0;
-static face_id_list id_list = {0};
+static face_id_list id_list ={ 0 };
 #endif
 
 #endif
@@ -218,7 +218,7 @@ static void draw_face_boxes(dl_matrix3du_t *image_matrix, box_array_t *boxes, in
         fb_gfx_drawFastHLine(&fb, x, y + h - 1, w, color);
         fb_gfx_drawFastVLine(&fb, x, y, h, color);
         fb_gfx_drawFastVLine(&fb, x + w - 1, y, h, color);
-#if 0
+        #if 0
         // landmark
         int x0, y0, j;
         for (j = 0; j < 10; j+=2) {
@@ -226,7 +226,7 @@ static void draw_face_boxes(dl_matrix3du_t *image_matrix, box_array_t *boxes, in
             y0 = (int)boxes->landmark[i].landmark_p[j+1];
             fb_gfx_fillRect(&fb, x0, y0, 3, 3, color);
         }
-#endif
+        #endif
     }
 }
 
@@ -323,14 +323,14 @@ static esp_err_t capture_handler(httpd_req_t *req)
     esp_err_t res = ESP_OK;
     int64_t fr_start = esp_timer_get_time();
 
-#ifdef CONFIG_LED_ILLUMINATOR_ENABLED
+    #ifdef CONFIG_LED_ILLUMINATOR_ENABLED
     enable_led(true);
     vTaskDelay(150 / portTICK_PERIOD_MS); // The LED needs to be turned on ~150ms before the call to esp_camera_fb_get()
     fb = esp_camera_fb_get();             // or it won't be visible in the frame. A better way to do this is needed.
     enable_led(false);
-#else
+    #else
     fb = esp_camera_fb_get();
-#endif
+    #endif
 
     if (!fb)
     {
@@ -347,7 +347,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
     snprintf(ts, 32, "%ld.%06ld", fb->timestamp.tv_sec, fb->timestamp.tv_usec);
     httpd_resp_set_hdr(req, "X-Timestamp", (const char *)ts);
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+    #if CONFIG_ESP_FACE_DETECT_ENABLED
     size_t out_len, out_width, out_height;
     uint8_t *out_buf;
     bool s;
@@ -355,7 +355,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
     int face_id = 0;
     if (!detection_enabled || fb->width > 400)
     {
-#endif
+        #endif
         size_t fb_len = 0;
         if (fb->format == PIXFORMAT_JPEG)
         {
@@ -364,7 +364,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
         }
         else
         {
-            jpg_chunking_t jchunk = {req, 0};
+            jpg_chunking_t jchunk ={ req, 0 };
             res = frame2jpg_cb(fb, 80, jpg_encode_stream, &jchunk) ? ESP_OK : ESP_FAIL;
             httpd_resp_send_chunk(req, NULL, 0);
             fb_len = jchunk.len;
@@ -373,7 +373,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
         int64_t fr_end = esp_timer_get_time();
         ESP_LOGI(TAG, "JPG: %uB %ums", (uint32_t)(fb_len), (uint32_t)((fr_end - fr_start) / 1000));
         return res;
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+        #if CONFIG_ESP_FACE_DETECT_ENABLED
     }
 
     dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
@@ -400,23 +400,23 @@ static esp_err_t capture_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-#if CONFIG_ESP_FACE_DETECT_MTMN
+    #if CONFIG_ESP_FACE_DETECT_MTMN
     box_array_t *net_boxes = face_detect(image_matrix, &mtmn_config);
-#endif
+    #endif
 
-#if CONFIG_ESP_FACE_DETECT_LSSH
+    #if CONFIG_ESP_FACE_DETECT_LSSH
     box_array_t *net_boxes = lssh_detect_object(image_matrix, lssh_config);
-#endif
+    #endif
 
     if (net_boxes)
     {
         detected = true;
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+        #if CONFIG_ESP_FACE_RECOGNITION_ENABLED
         if (recognition_enabled)
         {
             face_id = run_face_recognition(image_matrix, net_boxes);
         }
-#endif
+        #endif
         draw_face_boxes(image_matrix, net_boxes, face_id);
         dl_lib_free(net_boxes->score);
         dl_lib_free(net_boxes->box);
@@ -425,7 +425,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
         dl_lib_free(net_boxes);
     }
 
-    jpg_chunking_t jchunk = {req, 0};
+    jpg_chunking_t jchunk ={ req, 0 };
     s = fmt2jpg_cb(out_buf, out_len, out_width, out_height, PIXFORMAT_RGB888, 90, jpg_encode_stream, &jchunk);
     dl_matrix3du_free(image_matrix);
     if (!s)
@@ -437,7 +437,7 @@ static esp_err_t capture_handler(httpd_req_t *req)
     int64_t fr_end = esp_timer_get_time();
     ESP_LOGI(TAG, "FACE: %uB %ums %s%d", (uint32_t)(jchunk.len), (uint32_t)((fr_end - fr_start) / 1000), detected ? "DETECTED " : "", face_id);
     return res;
-#endif
+    #endif
 }
 
 static esp_err_t stream_handler(httpd_req_t *req)
@@ -448,7 +448,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
     size_t _jpg_buf_len = 0;
     uint8_t *_jpg_buf = NULL;
     char *part_buf[128];
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+    #if CONFIG_ESP_FACE_DETECT_ENABLED
     dl_matrix3du_t *image_matrix = NULL;
     bool detected = false;
     int face_id = 0;
@@ -457,7 +457,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
     int64_t fr_face = 0;
     int64_t fr_recognize = 0;
     int64_t fr_encode = 0;
-#endif
+    #endif
 
     static int64_t last_frame = 0;
     if (!last_frame)
@@ -474,17 +474,17 @@ static esp_err_t stream_handler(httpd_req_t *req)
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     httpd_resp_set_hdr(req, "X-Framerate", "60");
 
-#ifdef CONFIG_LED_ILLUMINATOR_ENABLED
+    #ifdef CONFIG_LED_ILLUMINATOR_ENABLED
     enable_led(true);
     isStreaming = true;
-#endif
+    #endif
 
     while (true)
     {
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+        #if CONFIG_ESP_FACE_DETECT_ENABLED
         detected = false;
         face_id = 0;
-#endif
+        #endif
 
         fb = esp_camera_fb_get();
         if (!fb)
@@ -496,7 +496,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
         {
             _timestamp.tv_sec = fb->timestamp.tv_sec;
             _timestamp.tv_usec = fb->timestamp.tv_usec;
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+            #if CONFIG_ESP_FACE_DETECT_ENABLED
             fr_start = esp_timer_get_time();
             fr_ready = fr_start;
             fr_face = fr_start;
@@ -504,7 +504,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
             fr_recognize = fr_start;
             if (!detection_enabled || fb->width > 400)
             {
-#endif
+                #endif
                 if (fb->format != PIXFORMAT_JPEG)
                 {
                     bool jpeg_converted = frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
@@ -521,7 +521,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
                     _jpg_buf_len = fb->len;
                     _jpg_buf = fb->buf;
                 }
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+                #if CONFIG_ESP_FACE_DETECT_ENABLED
             }
             else
             {
@@ -542,20 +542,20 @@ static esp_err_t stream_handler(httpd_req_t *req)
                     }
                     else
                     {
-#if CONFIG_ESP_FACE_DETECT_LSSH
+                        #if CONFIG_ESP_FACE_DETECT_LSSH
                         // lssh_update_config(&lssh_config, min_face, image_matrix->h, image_matrix->w);
-#endif
+                        #endif
                         fr_ready = esp_timer_get_time();
                         box_array_t *net_boxes = NULL;
                         if (detection_enabled)
                         {
-#if CONFIG_ESP_FACE_DETECT_MTMN
+                            #if CONFIG_ESP_FACE_DETECT_MTMN
                             net_boxes = face_detect(image_matrix, &mtmn_config);
-#endif
+                            #endif
 
-#if CONFIG_ESP_FACE_DETECT_LSSH
+                            #if CONFIG_ESP_FACE_DETECT_LSSH
                             net_boxes = lssh_detect_object(image_matrix, lssh_config);
-#endif
+                            #endif
                         }
                         fr_face = esp_timer_get_time();
                         fr_recognize = fr_face;
@@ -564,13 +564,13 @@ static esp_err_t stream_handler(httpd_req_t *req)
                             if (net_boxes)
                             {
                                 detected = true;
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+                                #if CONFIG_ESP_FACE_RECOGNITION_ENABLED
                                 if (recognition_enabled)
                                 {
                                     face_id = run_face_recognition(image_matrix, net_boxes);
                                 }
                                 fr_recognize = esp_timer_get_time();
-#endif
+                                #endif
                                 draw_face_boxes(image_matrix, net_boxes, face_id);
                                 dl_lib_free(net_boxes->score);
                                 dl_lib_free(net_boxes->box);
@@ -595,7 +595,7 @@ static esp_err_t stream_handler(httpd_req_t *req)
                     dl_matrix3du_free(image_matrix);
                 }
             }
-#endif
+            #endif
         }
         if (res == ESP_OK)
         {
@@ -627,38 +627,38 @@ static esp_err_t stream_handler(httpd_req_t *req)
         }
         int64_t fr_end = esp_timer_get_time();
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+        #if CONFIG_ESP_FACE_DETECT_ENABLED
         int64_t ready_time = (fr_ready - fr_start) / 1000;
         int64_t face_time = (fr_face - fr_ready) / 1000;
         int64_t recognize_time = (fr_recognize - fr_face) / 1000;
         int64_t encode_time = (fr_encode - fr_recognize) / 1000;
         int64_t process_time = (fr_encode - fr_start) / 1000;
-#endif
+        #endif
 
         int64_t frame_time = fr_end - last_frame;
         last_frame = fr_end;
         frame_time /= 1000;
         uint32_t avg_frame_time = ra_filter_run(&ra_filter, frame_time);
-        ESP_LOGI(TAG, "MJPG: %uB %ums (%.1ffps), AVG: %ums (%.1ffps)"
-#if CONFIG_ESP_FACE_DETECT_ENABLED
-                      ", %u+%u+%u+%u=%u %s%d"
-#endif
-                 ,
-                 (uint32_t)(_jpg_buf_len),
-                 (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time,
-                 avg_frame_time, 1000.0 / avg_frame_time
-#if CONFIG_ESP_FACE_DETECT_ENABLED
-                 ,
-                 (uint32_t)ready_time, (uint32_t)face_time, (uint32_t)recognize_time, (uint32_t)encode_time, (uint32_t)process_time,
-                 (detected) ? "DETECTED " : "", face_id
-#endif
-        );
+        //         ESP_LOGI(TAG, "MJPG: %uB %ums (%.1ffps), AVG: %ums (%.1ffps)"
+        // #if CONFIG_ESP_FACE_DETECT_ENABLED
+        //                       ", %u+%u+%u+%u=%u %s%d"
+        // #endif
+        //                  ,
+        //                  (uint32_t)(_jpg_buf_len),
+        //                  (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time,
+        //                  avg_frame_time, 1000.0 / avg_frame_time
+        // #if CONFIG_ESP_FACE_DETECT_ENABLED
+        //                  ,
+        //                  (uint32_t)ready_time, (uint32_t)face_time, (uint32_t)recognize_time, (uint32_t)encode_time, (uint32_t)process_time,
+        //                  (detected) ? "DETECTED " : "", face_id
+        // #endif
+        //         );
     }
 
-#ifdef CONFIG_LED_ILLUMINATOR_ENABLED
+    #ifdef CONFIG_LED_ILLUMINATOR_ENABLED
     isStreaming = false;
     enable_led(false);
-#endif
+    #endif
 
     last_frame = 0;
     return res;
@@ -760,24 +760,24 @@ static esp_err_t cmd_handler(httpd_req_t *req)
         res = s->set_wb_mode(s, val);
     else if (!strcmp(variable, "ae_level"))
         res = s->set_ae_level(s, val);
-#ifdef CONFIG_LED_ILLUMINATOR_ENABLED
+    #ifdef CONFIG_LED_ILLUMINATOR_ENABLED
     else if (!strcmp(variable, "led_intensity")) {
         led_duty = val;
         if (isStreaming)
             enable_led(true);
     }
-#endif
+    #endif
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+    #if CONFIG_ESP_FACE_DETECT_ENABLED
     else if (!strcmp(variable, "face_detect")) {
         detection_enabled = val;
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+        #if CONFIG_ESP_FACE_RECOGNITION_ENABLED
         if (!detection_enabled) {
             recognition_enabled = 0;
         }
-#endif
+        #endif
     }
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+    #if CONFIG_ESP_FACE_RECOGNITION_ENABLED
     else if (!strcmp(variable, "face_enroll"))
         is_enrolling = val;
     else if (!strcmp(variable, "face_recognize")) {
@@ -786,8 +786,8 @@ static esp_err_t cmd_handler(httpd_req_t *req)
             detection_enabled = val;
         }
     }
-#endif
-#endif
+    #endif
+    #endif
     else {
         res = -1;
     }
@@ -800,7 +800,7 @@ static esp_err_t cmd_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
-static int print_reg(char * p, sensor_t * s, uint16_t reg, uint32_t mask){
+static int print_reg(char * p, sensor_t * s, uint16_t reg, uint32_t mask) {
     return sprintf(p, "\"0x%x\":%u,", reg, s->get_reg(s, reg, mask));
 }
 
@@ -812,8 +812,8 @@ static esp_err_t status_handler(httpd_req_t *req)
     char *p = json_response;
     *p++ = '{';
 
-    if(s->id.PID == OV5640_PID || s->id.PID == OV3660_PID){
-        for(int reg = 0x3400; reg < 0x3406; reg+=2){
+    if (s->id.PID == OV5640_PID || s->id.PID == OV3660_PID) {
+        for (int reg = 0x3400; reg < 0x3406; reg+=2) {
             p+=print_reg(p, s, reg, 0xFFF);//12 bit
         }
         p+=print_reg(p, s, 0x3406, 0xFF);
@@ -823,19 +823,20 @@ static esp_err_t status_handler(httpd_req_t *req)
         p+=print_reg(p, s, 0x350a, 0x3FF);//10 bit
         p+=print_reg(p, s, 0x350c, 0xFFFF);//16 bit
 
-        for(int reg = 0x5480; reg <= 0x5490; reg++){
+        for (int reg = 0x5480; reg <= 0x5490; reg++) {
             p+=print_reg(p, s, reg, 0xFF);
         }
 
-        for(int reg = 0x5380; reg <= 0x538b; reg++){
+        for (int reg = 0x5380; reg <= 0x538b; reg++) {
             p+=print_reg(p, s, reg, 0xFF);
         }
 
-        for(int reg = 0x5580; reg < 0x558a; reg++){
+        for (int reg = 0x5580; reg < 0x558a; reg++) {
             p+=print_reg(p, s, reg, 0xFF);
         }
         p+=print_reg(p, s, 0x558a, 0x1FF);//9 bit
-    } else {
+    }
+    else {
         p+=print_reg(p, s, 0xd3, 0xFF);
         p+=print_reg(p, s, 0x111, 0xFF);
         p+=print_reg(p, s, 0x132, 0xFF);
@@ -868,18 +869,18 @@ static esp_err_t status_handler(httpd_req_t *req)
     p += sprintf(p, "\"hmirror\":%u,", s->status.hmirror);
     p += sprintf(p, "\"dcw\":%u,", s->status.dcw);
     p += sprintf(p, "\"colorbar\":%u", s->status.colorbar);
-#ifdef CONFIG_LED_ILLUMINATOR_ENABLED
+    #ifdef CONFIG_LED_ILLUMINATOR_ENABLED
     p += sprintf(p, ",\"led_intensity\":%u", led_duty);
-#else
+    #else
     p += sprintf(p, ",\"led_intensity\":%d", -1);
-#endif
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+    #endif
+    #if CONFIG_ESP_FACE_DETECT_ENABLED
     p += sprintf(p, ",\"face_detect\":%u", detection_enabled);
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+    #if CONFIG_ESP_FACE_RECOGNITION_ENABLED
     p += sprintf(p, ",\"face_enroll\":%u,", is_enrolling);
     p += sprintf(p, "\"face_recognize\":%u", recognition_enabled);
-#endif
-#endif
+    #endif
+    #endif
     *p++ = '}';
     *p++ = 0;
     httpd_resp_set_type(req, "application/json");
@@ -987,7 +988,7 @@ static esp_err_t greg_handler(httpd_req_t *req)
 static int parse_get_var(char *buf, const char * key, int def)
 {
     char _int[16];
-    if(httpd_query_key_value(buf, key, _int, sizeof(_int)) != ESP_OK){
+    if (httpd_query_key_value(buf, key, _int, sizeof(_int)) != ESP_OK) {
         return def;
     }
     return atoi(_int);
@@ -1079,12 +1080,15 @@ static esp_err_t index_handler(httpd_req_t *req)
     if (s != NULL) {
         if (s->id.PID == OV3660_PID) {
             return httpd_resp_send(req, (const char *)index_ov3660_html_gz_start, index_ov3660_html_gz_len);
-        } else if (s->id.PID == OV5640_PID) {
+        }
+        else if (s->id.PID == OV5640_PID) {
             return httpd_resp_send(req, (const char *)index_ov5640_html_gz_start, index_ov5640_html_gz_len);
-        } else {
+        }
+        else {
             return httpd_resp_send(req, (const char *)index_ov2640_html_gz_start, index_ov2640_html_gz_len);
         }
-    } else {
+    }
+    else {
         ESP_LOGE(TAG, "Camera sensor not found");
         return httpd_resp_send_500(req);
     }
@@ -1105,83 +1109,83 @@ void app_httpd_main()
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 12;
 
-    httpd_uri_t index_uri = {
+    httpd_uri_t index_uri ={
         .uri = "/",
         .method = HTTP_GET,
         .handler = index_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t status_uri = {
+    httpd_uri_t status_uri ={
         .uri = "/status",
         .method = HTTP_GET,
         .handler = status_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t cmd_uri = {
+    httpd_uri_t cmd_uri ={
         .uri = "/control",
         .method = HTTP_GET,
         .handler = cmd_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t capture_uri = {
+    httpd_uri_t capture_uri ={
         .uri = "/capture",
         .method = HTTP_GET,
         .handler = capture_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t stream_uri = {
+    httpd_uri_t stream_uri ={
         .uri = "/stream",
         .method = HTTP_GET,
         .handler = stream_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t xclk_uri = {
+    httpd_uri_t xclk_uri ={
         .uri = "/xclk",
         .method = HTTP_GET,
         .handler = xclk_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t reg_uri = {
+    httpd_uri_t reg_uri ={
         .uri = "/reg",
         .method = HTTP_GET,
         .handler = reg_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t greg_uri = {
+    httpd_uri_t greg_uri ={
         .uri = "/greg",
         .method = HTTP_GET,
         .handler = greg_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t pll_uri = {
+    httpd_uri_t pll_uri ={
         .uri = "/pll",
         .method = HTTP_GET,
         .handler = pll_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t win_uri = {
+    httpd_uri_t win_uri ={
         .uri = "/resolution",
         .method = HTTP_GET,
         .handler = win_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t mdns_uri = {
+    httpd_uri_t mdns_uri ={
         .uri = "/mdns",
         .method = HTTP_GET,
         .handler = mdns_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
-    httpd_uri_t monitor_uri = {
+    httpd_uri_t monitor_uri ={
         .uri = "/monitor",
         .method = HTTP_GET,
         .handler = monitor_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     ra_filter_init(&ra_filter, 20);
 
-#if CONFIG_ESP_FACE_DETECT_ENABLED
+    #if CONFIG_ESP_FACE_DETECT_ENABLED
 
-#if CONFIG_ESP_FACE_DETECT_MTMN
+    #if CONFIG_ESP_FACE_DETECT_MTMN
     mtmn_config.type = FAST;
     mtmn_config.min_face = 80;
     mtmn_config.pyramid = 0.707;
@@ -1195,17 +1199,17 @@ void app_httpd_main()
     mtmn_config.o_threshold.score = 0.7;
     mtmn_config.o_threshold.nms = 0.7;
     mtmn_config.o_threshold.candidate_number = 1;
-#endif
+    #endif
 
-#if CONFIG_ESP_FACE_DETECT_LSSH
+    #if CONFIG_ESP_FACE_DETECT_LSSH
     lssh_config = lssh_get_config(min_face, 0.7, 0.3, 240, 320);
-#endif
+    #endif
 
-#if CONFIG_ESP_FACE_RECOGNITION_ENABLED
+    #if CONFIG_ESP_FACE_RECOGNITION_ENABLED
     face_id_init(&id_list, FACE_ID_SAVE_NUMBER, ENROLL_CONFIRM_TIMES);
-#endif
+    #endif
 
-#endif
+    #endif
     ESP_LOGI(TAG, "Starting web server on port: '%d'", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK)
     {
